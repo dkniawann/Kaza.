@@ -711,17 +711,16 @@
                 <div class="eq-bar"></div>
             </div>
 
-            <!-- Track Info & Controls -->
+          <!-- Track Info & Controls -->
             <div class="flex-1 min-w-0">
                 <div class="flex justify-between items-center">
-                    <p class="text-xs font-title font-bold text-p3blue-light truncate" id="bgm-title">Ambient Synthesizer</p>
-                    <span class="text-[10px] text-gray-400 font-tech uppercase" id="bgm-time">BGM ON</span>
+                    <p class="text-xs font-title font-bold text-p3blue-light truncate" id="bgm-title">Color Your Night</p>
+                    <span class="text-[10px] text-gray-400 font-tech uppercase" id="bgm-time">BGM AUTO</span>
                 </div>
                 <!-- Track Selector & Upload Trigger -->
                 <div class="flex items-center space-x-2 mt-1">
                     <select id="bgm-select" class="bg-p3blue-dark border border-p3blue-light/50 text-[11px] text-white px-2 py-0.5 rounded focus:outline-none w-full cursor-pointer">
-                        <option value="synth">Ambient Synthesizer (Default)</option>
-                        <option value="color-your-night">Color Your Night (P3R)</option>
+                        <option value="color-your-night" selected>Color Your Night (P3R)</option>
                         <option value="mass-destruction">Mass Destruction (P3R Reload)</option>
                         <option value="custom">-- Custom Audio File / URL --</option>
                     </select>
@@ -1118,8 +1117,8 @@
             document.getElementById('add-bgm-modal').classList.add('hidden');
         });
 
-        /* ===================================================
-           4. AUDIO & MUSIC PLAYER (WEB AUDIO & ARCHIVE.ORG MP3)
+   /* ===================================================
+           4. AUDIO & MUSIC PLAYER (AUTO-PLAY & TANPA AMBIENT)
            =================================================== */
         const audioPlayer = document.getElementById('audio-player');
         const bgmPlayBtn = document.getElementById('bgm-play-btn');
@@ -1127,56 +1126,51 @@
         const bgmSelect = document.getElementById('bgm-select');
         const bgmTitle = document.getElementById('bgm-title');
 
-        let audioCtx = null;
-        let isSynthPlaying = false;
-        let synthInterval = null;
-
-        function playSynthBGM() {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            
-            isSynthPlaying = true;
-            let step = 0;
-            const notes = [220, 261.63, 329.63, 392.00, 440, 523.25];
-
-            synthInterval = setInterval(() => {
-                if (!isSynthPlaying) return;
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(notes[step % notes.length], audioCtx.currentTime);
-                gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.2);
-
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start();
-                osc.stop(audioCtx.currentTime + 1.2);
-                step++;
-            }, 400);
-        }
-
-        function stopSynthBGM() {
-            isSynthPlaying = false;
-            if (synthInterval) clearInterval(synthInterval);
-        }
+        const TRACK_URLS = {
+            'color-your-night': {
+                title: 'Color Your Night',
+                url: 'https://archive.org/download/persona-3-reload-ost-flac/Persona%203%20Reload%20%282024%29/Disc%201/16.%20Color%20Your%20Night.mp3'
+            },
+            'mass-destruction': {
+                title: 'Mass Destruction',
+                url: 'https://archive.org/download/persona-3-reload-ost-flac/Persona%203%20Reload%20%282024%29/Disc%201/14.%20Mass%20Destruction%20-Reload-.mp3'
+            }
+        };
 
         let isPlaying = false;
+        let unlockHandler = null;
+
+        function removeUnlockListeners() {
+            if (!unlockHandler) return;
+            document.removeEventListener('click', unlockHandler);
+            document.removeEventListener('touchstart', unlockHandler);
+            document.removeEventListener('keydown', unlockHandler);
+            unlockHandler = null;
+        }
+
+        function startAudio() {
+            if (!audioPlayer.src) return;
+            removeUnlockListeners();
+            audioPlayer.play().then(() => {
+                isPlaying = true;
+                playIcon.className = "fa-solid fa-pause p3-unslant";
+            }).catch(() => {
+                // Otomatis mulai memutar pada sentuhan/klik pertama jika browser memblokir autoplay
+                unlockHandler = () => {
+                    audioPlayer.play().then(() => {
+                        isPlaying = true;
+                        playIcon.className = "fa-solid fa-pause p3-unslant";
+                    }).catch(() => {});
+                    removeUnlockListeners();
+                };
+                document.addEventListener('click', unlockHandler);
+                document.addEventListener('touchstart', unlockHandler);
+                document.addEventListener('keydown', unlockHandler);
+            });
+        }
 
         function togglePlay() {
-            if (bgmSelect.value === 'synth') {
-                if (!isPlaying) {
-                    playSynthBGM();
-                    isPlaying = true;
-                    playIcon.className = "fa-solid fa-pause p3-unslant";
-                } else {
-                    stopSynthBGM();
-                    isPlaying = false;
-                    playIcon.className = "fa-solid fa-play p3-unslant";
-                }
-                return;
-            }
-
+            removeUnlockListeners();
             if (!audioPlayer.src) {
                 showToast("Silakan pilih atau masukkan URL file lagu MP3 terlebih dahulu.");
                 return;
@@ -1186,7 +1180,7 @@
                 audioPlayer.play().then(() => {
                     isPlaying = true;
                     playIcon.className = "fa-solid fa-pause p3-unslant";
-                }).catch(err => {
+                }).catch(() => {
                     showToast("Gagal memutar audio. Pastikan koneksi internet aktif.");
                 });
             } else {
@@ -1196,33 +1190,30 @@
             }
         }
 
-        bgmPlayBtn.addEventListener('click', togglePlay);
+        bgmPlayBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            togglePlay();
+        });
 
         bgmSelect.addEventListener('change', (e) => {
-            stopSynthBGM();
             audioPlayer.pause();
             isPlaying = false;
             playIcon.className = "fa-solid fa-play p3-unslant";
 
-            if (e.target.value === 'synth') {
-                bgmTitle.innerText = "Ambient Synthesizer";
-            } else if (e.target.value === 'custom') {
+            if (e.target.value === 'custom') {
                 document.getElementById('add-bgm-modal').classList.remove('hidden');
-            } else if (e.target.value === 'color-your-night') {
-                bgmTitle.innerText = "Color Your Night";
-                audioPlayer.src = "https://archive.org/download/persona-3-reload-ost-flac/Persona%203%20Reload%20%282024%29/Disc%201/16.%20Color%20Your%20Night.mp3"; 
-            } else if (e.target.value === 'mass-destruction') {
-                bgmTitle.innerText = "Mass Destruction";
-                audioPlayer.src = "https://archive.org/download/persona-3-reload-ost-flac/Persona%203%20Reload%20%282024%29/Disc%201/14.%20Mass%20Destruction%20-Reload-.mp3";
+            } else if (TRACK_URLS[e.target.value]) {
+                bgmTitle.innerText = TRACK_URLS[e.target.value].title;
+                audioPlayer.src = TRACK_URLS[e.target.value].url;
+                startAudio();
             }
         });
 
+        // Save Custom BGM Modal Action
         document.getElementById('save-custom-bgm-btn').addEventListener('click', () => {
             const title = document.getElementById('custom-bgm-title').value || "Custom BGM Track";
             const url = document.getElementById('custom-bgm-url').value;
             const fileInput = document.getElementById('custom-bgm-file');
-
-            stopSynthBGM();
 
             if (fileInput.files && fileInput.files[0]) {
                 const file = fileInput.files[0];
@@ -1234,7 +1225,7 @@
             }
 
             document.getElementById('add-bgm-modal').classList.add('hidden');
-            togglePlay();
+            startAudio();
             showToast("Lagu custom berhasil dimuat!");
         });
 

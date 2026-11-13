@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Tugas Manajemen Kinerja Divisi Operasional</title>
+    <title> KPI Divisi Operasional Donny</title></title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -44,6 +44,14 @@
             user-select: none;
             margin: 0 !important;
             padding: 0 !important;
+        }
+
+        /* Geser bagian kiri video ke tengah khusus di HP */
+        @media (max-width: 768px) {
+            #bg-video {
+                transform: scale(1.35) translateX(18%);
+                transform-origin: center center;
+            }
         }
 
         /* Diagonal slant utility */
@@ -208,6 +216,10 @@
             width: 4px;
             background-color: #00d9ff;
             animation: bounce 0.8s infinite alternate ease-in-out;
+            animation-play-state: paused;
+        }
+        .eq-playing .eq-bar {
+            animation-play-state: running;
         }
         .eq-bar:nth-child(1) { animation-delay: 0.1s; }
         .eq-bar:nth-child(2) { animation-delay: 0.3s; }
@@ -229,7 +241,7 @@
 <body class="relative min-h-screen halftone font-p3 antialiased">
 
     <!-- VIDEO BACKGROUND ANIMASI -->
-    <video autoplay loop muted playsinline class="fixed top-0 left-0 w-full h-full object-cover object-[20%_center] md:object-center z-[-3]">
+    <video id="bg-video" autoplay loop muted playsinline class="fixed top-0 left-0 w-full h-full object-cover z-[-3]">
         <source src="https://archive.org/download/persona-3-reload-makoto-yuki-wallpaper-ytshorts.savetube.vip/persona-3-reload-makoto-yuki-wallpaper-ytshorts.savetube.vip.mp4" type="video/mp4">
     </video>
     
@@ -700,7 +712,7 @@
         </main>
     </div>
 
-    <!-- FLOATING P3R MUSIC PLAYER WIDGET -->
+    <!-- FLOATING P3R MUSIC PLAYER WIDGET (TANPA AMBIENT) -->
     <div class="fixed bottom-4 right-4 z-50">
         <div class="p3-glass p-3 border-2 border-p3blue-light flex items-center space-x-3 shadow-2xl max-w-sm rounded-none">
             <!-- Animated Equalizer Bars -->
@@ -711,13 +723,13 @@
                 <div class="eq-bar"></div>
             </div>
 
-          <!-- Track Info & Controls -->
+            <!-- Track Info & Controls -->
             <div class="flex-1 min-w-0">
                 <div class="flex justify-between items-center">
                     <p class="text-xs font-title font-bold text-p3blue-light truncate" id="bgm-title">Color Your Night</p>
-                    <span class="text-[10px] text-gray-400 font-tech uppercase" id="bgm-time">BGM AUTO</span>
+                    <span class="text-[10px] text-gray-400 font-tech uppercase" id="bgm-time">P3R OST</span>
                 </div>
-                <!-- Track Selector & Upload Trigger -->
+                <!-- Track Selector -->
                 <div class="flex items-center space-x-2 mt-1">
                     <select id="bgm-select" class="bg-p3blue-dark border border-p3blue-light/50 text-[11px] text-white px-2 py-0.5 rounded focus:outline-none w-full cursor-pointer">
                         <option value="color-your-night" selected>Color Your Night (P3R)</option>
@@ -832,8 +844,8 @@
         </div>
     </div>
 
-    <!-- AUDIO SYSTEM & SCRIPT -->
-    <audio id="audio-player" loop></audio>
+    <!-- AUDIO SYSTEM -->
+    <audio id="audio-player" loop preload="auto"></audio>
 
     <script>
         /* ===================================================
@@ -952,7 +964,6 @@
             }
         }
 
-        /* Render KPI Cards into HTML Grid */
         function renderKpis(filter = 'all') {
             const grid = document.getElementById('kpi-grid');
             grid.innerHTML = '';
@@ -1022,7 +1033,6 @@
             showToast('Data KPI berhasil dihapus dari arsip.');
         }
 
-        /* Filter Tab Handlers */
         document.querySelectorAll('#kpi-filters button').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('#kpi-filters button').forEach(b => {
@@ -1035,7 +1045,6 @@
             });
         });
 
-        /* Add KPI Form Submission */
         document.getElementById('add-kpi-form').addEventListener('submit', (e) => {
             e.preventDefault();
             const title = document.getElementById('kpi-title').value;
@@ -1102,7 +1111,6 @@
             });
         });
 
-        /* Modals Toggle Logic */
         document.getElementById('open-add-kpi-btn').addEventListener('click', () => {
             document.getElementById('add-kpi-modal').classList.remove('hidden');
         });
@@ -1117,7 +1125,7 @@
             document.getElementById('add-bgm-modal').classList.add('hidden');
         });
 
-   /* ===================================================
+        /* ===================================================
            4. AUDIO & MUSIC PLAYER (AUTO-PLAY & TANPA AMBIENT)
            =================================================== */
         const audioPlayer = document.getElementById('audio-player');
@@ -1125,6 +1133,7 @@
         const playIcon = document.getElementById('play-icon');
         const bgmSelect = document.getElementById('bgm-select');
         const bgmTitle = document.getElementById('bgm-title');
+        const eqVisualizer = document.getElementById('eq-visualizer');
 
         const TRACK_URLS = {
             'color-your-night': {
@@ -1137,40 +1146,59 @@
             }
         };
 
-        let isPlaying = false;
-        let unlockHandler = null;
+        function setPlayingUI(playing) {
+            if (playing) {
+                playIcon.className = "fa-solid fa-pause p3-unslant";
+                eqVisualizer.classList.add('eq-playing');
+            } else {
+                playIcon.className = "fa-solid fa-play p3-unslant";
+                eqVisualizer.classList.remove('eq-playing');
+            }
+        }
 
-        function removeUnlockListeners() {
-            if (!unlockHandler) return;
-            document.removeEventListener('click', unlockHandler);
-            document.removeEventListener('touchstart', unlockHandler);
-            document.removeEventListener('keydown', unlockHandler);
-            unlockHandler = null;
+        audioPlayer.addEventListener('play', () => setPlayingUI(true));
+        audioPlayer.addEventListener('pause', () => setPlayingUI(false));
+        audioPlayer.addEventListener('error', () => {
+            setPlayingUI(false);
+            showToast("Audio gagal dimuat dari server. Klik ikon musik untuk pilih file MP3 lokal.");
+        });
+
+        let unlockListenerAttached = false;
+
+        function onFirstInteraction() {
+            if (!audioPlayer.paused) {
+                detachUnlockListeners();
+                return;
+            }
+            audioPlayer.play().then(() => {
+                detachUnlockListeners();
+            }).catch(() => {});
+        }
+
+        function attachUnlockListeners() {
+            if (unlockListenerAttached) return;
+            unlockListenerAttached = true;
+            document.addEventListener('pointerdown', onFirstInteraction);
+            document.addEventListener('keydown', onFirstInteraction);
+        }
+
+        function detachUnlockListeners() {
+            if (!unlockListenerAttached) return;
+            unlockListenerAttached = false;
+            document.removeEventListener('pointerdown', onFirstInteraction);
+            document.removeEventListener('keydown', onFirstInteraction);
         }
 
         function startAudio() {
             if (!audioPlayer.src) return;
-            removeUnlockListeners();
             audioPlayer.play().then(() => {
-                isPlaying = true;
-                playIcon.className = "fa-solid fa-pause p3-unslant";
+                detachUnlockListeners();
             }).catch(() => {
-                // Otomatis mulai memutar pada sentuhan/klik pertama jika browser memblokir autoplay
-                unlockHandler = () => {
-                    audioPlayer.play().then(() => {
-                        isPlaying = true;
-                        playIcon.className = "fa-solid fa-pause p3-unslant";
-                    }).catch(() => {});
-                    removeUnlockListeners();
-                };
-                document.addEventListener('click', unlockHandler);
-                document.addEventListener('touchstart', unlockHandler);
-                document.addEventListener('keydown', unlockHandler);
+                attachUnlockListeners();
             });
         }
 
         function togglePlay() {
-            removeUnlockListeners();
             if (!audioPlayer.src) {
                 showToast("Silakan pilih atau masukkan URL file lagu MP3 terlebih dahulu.");
                 return;
@@ -1178,15 +1206,13 @@
 
             if (audioPlayer.paused) {
                 audioPlayer.play().then(() => {
-                    isPlaying = true;
-                    playIcon.className = "fa-solid fa-pause p3-unslant";
+                    detachUnlockListeners();
                 }).catch(() => {
-                    showToast("Gagal memutar audio. Pastikan koneksi internet aktif.");
+                    showToast("Sedang memuat lagu, coba tekan tombol Play sekali lagi.");
                 });
             } else {
+                detachUnlockListeners();
                 audioPlayer.pause();
-                isPlaying = false;
-                playIcon.className = "fa-solid fa-play p3-unslant";
             }
         }
 
@@ -1197,19 +1223,18 @@
 
         bgmSelect.addEventListener('change', (e) => {
             audioPlayer.pause();
-            isPlaying = false;
-            playIcon.className = "fa-solid fa-play p3-unslant";
+            setPlayingUI(false);
 
             if (e.target.value === 'custom') {
                 document.getElementById('add-bgm-modal').classList.remove('hidden');
             } else if (TRACK_URLS[e.target.value]) {
                 bgmTitle.innerText = TRACK_URLS[e.target.value].title;
                 audioPlayer.src = TRACK_URLS[e.target.value].url;
+                audioPlayer.load();
                 startAudio();
             }
         });
 
-        // Save Custom BGM Modal Action
         document.getElementById('save-custom-bgm-btn').addEventListener('click', () => {
             const title = document.getElementById('custom-bgm-title').value || "Custom BGM Track";
             const url = document.getElementById('custom-bgm-url').value;
@@ -1225,6 +1250,7 @@
             }
 
             document.getElementById('add-bgm-modal').classList.add('hidden');
+            audioPlayer.load();
             startAudio();
             showToast("Lagu custom berhasil dimuat!");
         });
@@ -1306,10 +1332,17 @@
             requestAnimationFrame(drawShards);
         }
 
-        window.onload = () => {
-            drawShards();
-            renderKpis();
-        };
+        /* ===================================================
+           6. INISIALISASI LANGSUNG (TANPA MENUNGGU VIDEO)
+           =================================================== */
+        drawShards();
+        renderKpis();
+
+        // Langsung siapkan dan jalankan Color Your Night
+        bgmTitle.innerText = TRACK_URLS['color-your-night'].title;
+        audioPlayer.src = TRACK_URLS['color-your-night'].url;
+        audioPlayer.load();
+        startAudio();
     </script>
 </body>
 </html>
